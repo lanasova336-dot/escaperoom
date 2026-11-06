@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Побег из класса: Машина Тьюринга</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1d;
+            --accent-color: #fca311;
+            --text-color: #e5e5e5;
+            --success-color: #4caf50;
+            --error-color: #f44336;
+            --modal-bg: rgba(0, 0, 0, 0.9);
+            --gold-gradient: linear-gradient(135deg, #ffd700, #fca311);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            overflow-x: hidden;
+            user-select: none;
+        }
+
+        .screen {
+            display: none;
+            width: 100%;
+            min-height: 100vh;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        .content-box {
+            max-width: 600px;
+            padding: 2rem;
+            text-align: center;
+            background: #2c2c2e;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            margin: 20px;
+        }
+
+        h1 { 
+            color: var(--accent-color); 
+            margin-bottom: 0.5rem; 
+        }
+        
+        button {
+            background-color: var(--accent-color);
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1.1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.1s;
+            margin: 10px;
+        }
+
+        button:active { transform: scale(0.95); }
+        button.secondary { background-color: #444; color: white; }
+
+        .level-card {
+            background: #333;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .level-card:hover { border-color: var(--accent-color); background: #3a3a3c; }
+        .level-status { font-size: 1.2rem; }
+
+        #game-ui {
+            width: 100%;
+            max-width: 1200px;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 0 10px;
+        }
+
+        .progress-container {
+            flex-grow: 1;
+            margin: 0 20px;
+            background: #333;
+            height: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background-color: var(--accent-color);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .scene-wrapper {
+            position: relative;
+            width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+            scrollbar-color: var(--accent-color) #333;
+        }
+
+        .scene {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background-color: #000;
+            margin: 0 auto;
+            display: block;
+        }
+
+        .scene img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .no-image-msg {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 1.2rem;
+            text-align: center;
+            width: 90%;
+            pointer-events: none;
+            background: rgba(0,0,0,0.7);
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .marker {
+            position: absolute;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background-color: rgba(0, 0, 0, 0.6);
+            border: 2px solid var(--accent-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(252, 163, 17, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(252, 163, 17, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(252, 163, 17, 0); }
+        }
+
+        .marker svg {
+            width: 24px;
+            height: 24px;
+            fill: none;
+            stroke: var(--accent-color);
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .marker.solved {
+            border-color: var(--success-color);
+            animation: none;
+            background-color: rgba(76, 175, 80, 0.2);
+        }
+
+        .marker.solved svg { stroke: var(--success-color); }
+
+        .marker-label {
+            position: absolute;
+            bottom: 55px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+        }
+
+        .marker:hover .marker-label, .marker:active .marker-label { opacity: 1; }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--modal-bg);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .modal.active { display: flex; }
+
+        .modal-content {
+            background: #2c2c2e;
+            padding: 2rem;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            position: relative;
+            border: 1px solid #444;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #888;
+        }
+
+        .task-options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .option-btn {
+            background: #444;
+            color: white;
+            text-align: left;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+        }
+
+        .option-btn.selected { border-color: var(--accent-color); background: #333; }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin: 15px 0;
+            border-radius: 6px;
+            border: 1px solid #555;
+            background: #1a1a1d;
+            color: white;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        .hints { margin-top: 10px; font-size: 0.9rem; color: #aaa; }
+        .hint-btn {
+            background: none; border: none; color: var(--accent-color);
+            padding: 0; font-size: 0.9rem; cursor: pointer; text-decoration: underline;
+        }
+
+        .feedback {
+            margin-top: 15px; padding: 10px; border-radius: 6px; display: none;
+        }
+        .feedback.success { background: rgba(76, 175, 80, 0.2); color: #81c784; display: block; }
+        .feedback.error { background: rgba(244, 67, 54, 0.2); color: #e57373; display: block; }
+
+        .footer {
+            display: flex; justify-content: space-between; padding: 10px;
+            max-width: 1200px; margin: 0 auto; width: 100%; box-sizing: border-box;
+        }
+
+        .scroll-hint { text-align: center; color: #888; font-size: 0.8rem; margin-top: 5px; display: none; }
+
+        .victory-title {
+            font-size: 2.5rem;
+            background: var(--gold-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+        }
+        .victory-text { font-size: 1.2rem; line-height: 1.6; color: #ccc; }
+        .trophy-icon { width: 80px; height: 80px; margin-bottom: 1rem; display: block; margin-left: auto; margin-right: auto; fill: var(--accent-color); }
+
+        @media (max-width: 700px) {
+            .scene-wrapper { overflow-x: auto; }
+            .scene { min-width: 100vw; }
+            .scroll-hint { display: block; }
+            .marker { width: 40px; height: 40px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Start Screen -->
+    <div id="start-screen" class="screen active">
+        <div class="content-box">
+            <h1>Побег из класса</h1>
+            <p>Предмет: Информатика, 11 класс<br>Тема: Машина Тьюринга</p>
+            <p style="margin: 20px 0; color: #aaa;">Вы заперты в виртуальных лабораториях. Чтобы выбраться, восстановите работу вычислительных систем, решая задачи по теме.</p>
+            <button onclick="showScreen('menu-screen')">Начать игру</button>
+        </div>
+    </div>
+
+    <!-- Menu Screen -->
+    <div id="menu-screen" class="screen">
+        <div class="content-box">
+            <h1>Выбор уровня</h1>
+            <p>Выберите уровень для прохождения:</p>
+            
+            <div class="level-card" onclick="selectLevel(1)">
+                <div>
+                    <h3 style="margin:0">Уровень 1: Лаборатория</h3>
+                    <small style="color:#aaa">База: устройство МТ</small>
+                </div>
+                <span id="status-1" class="level-status"></span>
+            </div>
+
+            <div class="level-card" onclick="selectLevel(2)">
+                <div>
+                    <h3 style="margin:0">Уровень 2: Цех Роботов</h3>
+                    <small style="color:#aaa">Практика: алгоритмы</small>
+                </div>
+                <span id="status-2" class="level-status"></span>
+            </div>
+
+            <div class="level-card" onclick="selectLevel(3)">
+                <div>
+                    <h3 style="margin:0">Уровень 3: Кибер-архив</h3>
+                    <small style="color:#aaa">Синтез: логика</small>
+                </div>
+                <span id="status-3" class="level-status"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="screen">
+        <div id="game-ui">
+            <div class="header">
+                <button class="secondary" onclick="showScreen('menu-screen')" style="padding: 5px 10px; font-size: 0.9rem;">Меню</button>
+                <div class="progress-container">
+                    <div class="progress-bar" id="progress-bar"></div>
+                </div>
+                <span id="progress-text">Системы: 0/5</span>
+            </div>
+
+            <div class="scene-wrapper">
+                <div class="scene" id="scene">
+                    <img id="room-img" src="" alt="Комната" onerror="this.style.display='none'; document.getElementById('no-img').style.display='block'">
+                    <div id="no-img" class="no-image-msg" style="display:none">
+                        Картинка не найдена!<br>
+                        Убедитесь, что файлы room1.png, room2.png, room3.png<br>
+                        лежат в той же папке, что и этот HTML-файл.
+                    </div>
+                </div>
+                <div class="scroll-hint">← листай комнату →</div>
+            </div>
+
+            <div class="footer">
+                <button class="secondary" onclick="showLog()">Журнал</button>
+                <div id="hint-text">Нажимайте на светящиеся метки.</div>
+                <button class="secondary" onclick="confirmReset()">Заново</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Final Screen (Per Level) -->
+    <div id="final-screen" class="screen">
+        <div class="content-box">
+            <h1>Уровень пройден!</h1>
+            <p id="final-msg">Вы успешно восстановили систему.</p>
+            <button onclick="checkGlobalProgress()">Продолжить</button>
+        </div>
+    </div>
+
+    <!-- Global Victory Screen -->
+    <div id="victory-screen" class="screen">
+        <div class="content-box">
+            <svg class="trophy-icon" viewBox="0 0 24 24"><path d="M8 21h8m-4-9v9m0-9a5 5 0 0 1-5-5V3h10v3a5 5 0 0 1-5 5z"/></svg>
+            <h1 class="victory-title">ПОЛНАЯ ПОБЕДА!</h1>
+            <p class="victory-text">
+                Ты просто молодец!<br><br>
+                Все три уровня пройдены, и тема «Машина Тьюринга» теперь в твоём арсенале. 
+                От базового устройства до сложных логических задач — ты справился со всем блестяще!
+                <br><br>
+                Твоя настойчивость и внимательность — настоящий пример для подражания. 
+                Так держать!
+            </p>
+            <button onclick="showScreen('menu-screen')">Вернуться в меню</button>
+        </div>
+    </div>
+
+    <!-- Task Modal -->
+    <div id="task-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h3 id="modal-title">Задание</h3>
+            <p id="modal-desc">Текст задания...</p>
+            <div id="input-area"></div>
+            <div class="hints">
+                <button class="hint-btn" id="hint-btn-1" onclick="showHint(1)">Подсказка 1</button>
+                <button class="hint-btn" id="hint-btn-2" onclick="showHint(2)" style="display:none">Подсказка 2</button>
+                <div id="hint-text-display" style="margin-top:5px; font-style:italic;"></div>
+            </div>
+            <button onclick="checkAnswer()" style="width:100%; margin: 15px 0 5px 0;">Проверить</button>
+            <div id="feedback" class="feedback"></div>
+        </div>
+    </div>
+
+    <!-- Reset Modal -->
+    <div id="reset-modal" class="modal">
+        <div class="modal-content" style="text-align: center;">
+            <h3>Начать уровень заново?</h3>
+            <button onclick="resetLevel(true)">Да</button>
+            <button class="secondary" onclick="document.getElementById('reset-modal').classList.remove('active')">Нет</button>
+        </div>
+    </div>
+
+    <!-- Door Warning Modal -->
+    <div id="door-modal" class="modal">
+        <div class="modal-content" style="text-align: center;">
+            <h3>Дверь заблокирована</h3>
+            <p id="door-msg">До открытия двери осталось восстановить системы.</p>
+            <button class="secondary" onclick="document.getElementById('door-modal').classList.remove('active')">Понятно</button>
+        </div>
+    </div>
+
+    <!-- Log Modal -->
+    <div id="log-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="document.getElementById('log-modal').classList.remove('active')">&times;</span>
+            <h3>Журнал</h3>
+            <ul id="log-list" style="text-align: left; padding-left: 20px;"></ul>
+        </div>
+    </div>
+
+    <script>
+        const levels = {
+            1: {
+                image: 'room1.png',
+                tasks: [
+                    { id: 1, item: "Чертеж", type: "choice", q: "Элемент для хранения данных?", opt: ["Головка", "Лента", "Таблица"], ans: "Лента", h1: "Разделен на ячейки.", h2: "На нем пишут символы.", s: "Верно! Лента — это память.", e: "Головка читает, таблица хранит правила." },
+                    { id: 2, item: "Блокнот", type: "input", q: "Правило: q1, 0 -> q2, 1, R. Что запишем?", opt: [], ans: ["1"], h1: "Символ после стрелки.", h2: "Замена перед сдвигом.", s: "Правильно! Заменяем 0 на 1.", e: "Мы записываем то, что указано во второй части команды." },
+                    { id: 3, item: "Перфокарты", type: "choice", q: "Что значит 'R' в команде?", opt: ["Restart", "Right (вправо)", "Remove"], ans: "Right (вправо)", h1: "Направление движения.", h2: "Противоположность L.", s: "Отлично! Сдвиг вправо.", e: "R означает Right — движение головки вправо." },
+                    { id: 4, item: "Формула", type: "input", q: "Состояние при включении машины?", opt: [], ans: ["начальное"], h1: "Оно одно и первое.", h2: "Обычно q0.", s: "Верно! Старт из начального состояния.", e: "Машина всегда начинает с определенного стартового состояния." },
+                    { id: 5, item: "Калькулятор", type: "choice", q: "Сколько головок у стандартной МТ?", opt: ["1", "2", "Бесконечно"], ans: "1", h1: "Все делается последовательно.", h2: "Один механизм на ленту.", s: "Абсолютно верно! Одна головка.", e: "В базовой модели используется только одна считывающая головка." }
+                ],
+                coords: [
+                    { id: 1, left: 15, top: 25, icon: 'blueprint' },
+                    { id: 2, left: 45, top: 70, icon: 'notebook' },
+                    { id: 3, left: 65, top: 65, icon: 'card' },
+                    { id: 4, left: 85, top: 30, icon: 'formula' },
+                    { id: 5, left: 85, top: 80, icon: 'calc' },
+                    { id: 'door', left: 50, top: 40, icon: 'lock' }
+                ]
+            },
+            2: {
+                image: 'room2.png',
+                tasks: [
+                    { id: 1, item: "Экран", type: "choice", q: "Что делает команда 'L'?", opt: ["Сдвиг влево", "Сдвиг вправо", "Стирание"], ans: "Сдвиг влево", h1: "Left.", h2: "Назад по ленте.", s: "Верно! Головка едет влево.", e: "L означает Left — движение головки влево." },
+                    { id: 2, item: "Манипулятор", type: "input", q: "Головка видит B. Правило: q1, B -> q1, B, R. Изменится ли символ?", opt: [], ans: ["нет", "не изменится", "0"], h1: "Сравни символ до и после стрелки.", h2: "B переходит в B.", s: "Правильно! Символ остался прежним.", e: "Так как мы записываем тот же самый символ B, содержимое ячейки не меняется." },
+                    { id: 3, item: "Панель", type: "choice", q: "Что такое алфавит машины?", opt: ["Язык программирования", "Набор допустимых символов", "Русский язык"], ans: "Набор допустимых символов", h1: "Это не человеческий язык.", h2: "0, 1, A, B...", s: "Отлично! Это множество символов ленты.", e: "Алфавит — это конечный набор символов, которые машина может писать на ленте." },
+                    { id: 4, item: "Схема", type: "input", q: "Если правило для текущего символа отсутствует, машина...", opt: [], ans: ["остановится", "останавливается"], h1: "Ей нечего делать.", h2: "Аварийная остановка.", s: "Верно! Работа завершается.", e: "Отсутствие перехода для текущей конфигурации приводит к остановке." },
+                    { id: 5, item: "Куб", type: "choice", q: "Может ли головка одновременно читать и писать?", opt: ["Да", "Нет"], ans: "Да", h1: "Это происходит в одной ячейке.", h2: "Операция атомарна.", s: "Да! Она заменяет символ при считывании.", e: "В такте работы машины считывание и запись происходят в рамках одного шага." }
+                ],
+                coords: [
+                    { id: 1, left: 15, top: 25, icon: 'blueprint' },
+                    { id: 2, left: 40, top: 50, icon: 'notebook' },
+                    { id: 3, left: 90, top: 55, icon: 'card' },
+                    { id: 4, left: 80, top: 35, icon: 'formula' },
+                    { id: 5, left: 85, top: 80, icon: 'calc' },
+                    { id: 'door', left: 55, top: 35, icon: 'lock' }
+                ]
+            },
+            3: {
+                image: 'room3.png',
+                tasks: [
+                    { id: 1, item: "Голограмма", type: "choice", q: "Что такое конфигурация МТ?", opt: ["Состояние + содержимое ленты + позиция головки", "Только состояние", "Только лента"], ans: "Состояние + содержимое ленты + позиция головки", h1: "Это полное описание системы.", h2: "Где мы и что видим.", s: "Верно! Это 'мгновенный снимок' работы.", e: "Конфигурация включает всё: состояние автомата, содержимое ленты и место головки." },
+                    { id: 2, item: "Ядро", type: "input", q: "Машина Тьюринга является универсальным...", opt: [], ans: ["исполнителем", "компьютером", "алгоритмом"], h1: "Она может выполнить любой алгоритм.", h2: "Исполнитель команд.", s: "Правильно! Универсальный исполнитель.", e: "Любой алгоритм можно запрограммировать на МТ." },
+                    { id: 3, item: "Карта", type: "choice", q: "Если машина зациклилась, она...", opt: ["Никогда не остановится", "Сама выключится", "Сгорит"], ans: "Никогда не остановится", h1: "Нет финального состояния.", h2: "Бесконечный цикл.", s: "Отлично! Проблема остановки.", e: "Если нет перехода в финальное состояние, машина будет работать вечно." },
+                    { id: 4, item: "Консоль", type: "input", q: "Сколько таблиц переходов у обычной МТ?", opt: [], ans: ["1", "одна"], h1: "Она управляет всем процессом.", h2: "Единый свод правил.", s: "Верно! Одна программа.", e: "У машины одна таблица переходов, которая определяет её поведение." },
+                    { id: 5, item: "Фрагмент", type: "choice", q: "Теоретически лента МТ имеет...", opt: ["Конечную длину", "Бесконечную длину"], ans: "Бесконечную длину", h1: "Память не ограничена.", h2: "Всегда можно добавить ячейку.", s: "Абсолютно верно! Бесконечная память.", e: "Модель предполагает бесконечную ленту, чтобы исключить нехватку памяти." }
+                ],
+                coords: [
+                    { id: 1, left: 15, top: 40, icon: 'blueprint' },
+                    { id: 2, left: 50, top: 30, icon: 'notebook' },
+                    { id: 3, left: 85, top: 35, icon: 'card' },
+                    { id: 4, left: 75, top: 75, icon: 'formula' },
+                    { id: 5, left: 90, top: 50, icon: 'calc' },
+                    { id: 'door', left: 55, top: 45, icon: 'lock' }
+                ]
+            }
+        };
+
+        const icons = {
+            blueprint: '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>',
+            notebook: '<svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>',
+            card: '<svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"></rect><line x1="6" y1="8" x2="6" y2="8"></line><line x1="10" y1="8" x2="10" y2="8"></line><line x1="14" y1="8" x2="14" y2="8"></line></svg>',
+            formula: '<svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="6" y2="4"></line><line x1="18" y1="4" x2="6" y2="20"></line></svg>',
+            calc: '<svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="8" y1="10" x2="16" y2="10"></line><line x1="8" y1="14" x2="16" y2="14"></line></svg>',
+            lock: '<svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>',
+            unlock: '<svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>',
+            check: '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>'
+        };
+
+        let currentLevel = 1;
+        let progress = [];
+        let currentTaskId = null;
+        let selectedOption = null;
+
+        function updateMenuStatus() {
+            for (let i = 1; i <= 3; i++) {
+                const saved = JSON.parse(localStorage.getItem(`turing_l${i}`)) || [];
+                const el = document.getElementById(`status-${i}`);
+                if (saved.length === 5) {
+                    el.innerHTML = icons['check'];
+                    el.style.color = '#4caf50';
+                } else {
+                    el.innerHTML = icons['lock'];
+                    el.style.color = '#888';
+                }
+            }
+        }
+
+        function selectLevel(lvl) {
+            currentLevel = lvl;
+            progress = JSON.parse(localStorage.getItem(`turing_l${lvl}`)) || [];
+            
+            const imgElement = document.getElementById('room-img');
+            imgElement.src = levels[lvl].image;
+            document.getElementById('no-img').style.display = 'none';
+            imgElement.style.display = 'block';
+
+            renderMarkers();
+            updateProgress();
+            showScreen('game-screen');
+        }
+
+        function renderMarkers() {
+            const scene = document.getElementById('scene');
+            Array.from(scene.children).forEach(child => {
+                if (child.classList.contains('marker')) child.remove();
+            });
+
+            const coords = levels[currentLevel].coords;
+            coords.forEach(c => {
+                const marker = document.createElement('div');
+                marker.className = 'marker';
+                marker.style.left = c.left + '%';
+                marker.style.top = c.top + '%';
+                
+                const task = levels[currentLevel].tasks.find(t => t.id === c.id);
+                const label = c.id === 'door' ? 'Выход' : task.item;
+                const iconKey = c.icon;
+                
+                marker.innerHTML = icons[iconKey] + `<div class="marker-label">${label}</div>`;
+                
+                if (c.id === 'door') {
+                    marker.id = 'door-marker';
+                    marker.onclick = openDoor;
+                } else {
+                    marker.onclick = () => openTask(c.id);
+                    if (progress.includes(c.id)) {
+                        marker.classList.add('solved');
+                        marker.innerHTML = icons['check'] + `<div class="marker-label">${label}</div>`;
+                    }
+                }
+                scene.appendChild(marker);
+            });
+        }
+
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            if (id === 'menu-screen') updateMenuStatus();
+        }
+
+        function updateProgress() {
+            const count = progress.length;
+            document.getElementById('progress-text').innerText = `Системы: ${count}/5`;
+            document.getElementById('progress-bar').style.width = `${(count/5)*100}%`;
+            
+            const doorMarker = document.getElementById('door-marker');
+            if (count === 5) {
+                doorMarker.classList.add('solved');
+                doorMarker.innerHTML = icons['unlock'] + `<div class="marker-label">Выход</div>`;
+            } else {
+                doorMarker.innerHTML = icons['lock'] + `<div class="marker-label">Выход</div>`;
+            }
+        }
+
+        function openTask(id) {
+            if (progress.includes(id)) return;
+            currentTaskId = id;
+            const task = levels[currentLevel].tasks.find(t => t.id === id);
+            
+            document.getElementById('modal-title').innerText = task.item;
+            document.getElementById('modal-desc').innerText = task.q;
+            document.getElementById('feedback').style.display = 'none';
+            document.getElementById('hint-text-display').innerText = '';
+            document.getElementById('hint-btn-1').style.display = 'inline-block';
+            document.getElementById('hint-btn-2').style.display = 'none';
+            selectedOption = null;
+
+            const inputArea = document.getElementById('input-area');
+            inputArea.innerHTML = '';
+
+            if (task.type === 'choice') {
+                const div = document.createElement('div');
+                div.className = 'task-options';
+                task.opt.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.className = 'option-btn';
+                    btn.innerText = opt;
+                    btn.onclick = () => {
+                        document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+                        btn.classList.add('selected');
+                        selectedOption = opt;
+                    };
+                    div.appendChild(btn);
+                });
+                inputArea.appendChild(div);
+            } else {
+                const inp = document.createElement('input');
+                inp.type = 'text';
+                inp.inputMode = 'decimal';
+                inp.id = 'task-input';
+                inputArea.appendChild(inp);
+            }
+            document.getElementById('task-modal').classList.add('active');
+        }
+
+        function showHint(num) {
+            const task = levels[currentLevel].tasks.find(t => t.id === currentTaskId);
+            if (num === 1) {
+                document.getElementById('hint-text-display').innerText = task.h1;
+                document.getElementById('hint-btn-1').style.display = 'none';
+                document.getElementById('hint-btn-2').style.display = 'inline-block';
+            } else {
+                document.getElementById('hint-text-display').innerText = task.h2;
+                document.getElementById('hint-btn-2').style.display = 'none';
+            }
+        }
+
+        function checkAnswer() {
+            const task = levels[currentLevel].tasks.find(t => t.id === currentTaskId);
+            let isCorrect = false;
+            let userVal = '';
+
+            if (task.type === 'choice') {
+                userVal = selectedOption;
+                isCorrect = (userVal === task.ans);
+            } else {
+                userVal = document.getElementById('task-input').value.trim().toLowerCase();
+                isCorrect = task.ans.some(a => a.toLowerCase() === userVal);
+            }
+
+            const fb = document.getElementById('feedback');
+            fb.style.display = 'block';
+            
+            if (isCorrect) {
+                fb.className = 'feedback success';
+                fb.innerText = task.s;
+                setTimeout(() => {
+                    closeModal();
+                    progress.push(currentTaskId);
+                    localStorage.setItem(`turing_l${currentLevel}`, JSON.stringify(progress));
+                    renderMarkers();
+                    updateProgress();
+                    addToLog(task.item, true);
+                }, 1500);
+            } else {
+                fb.className = 'feedback error';
+                fb.innerText = task.e;
+                addToLog(task.item, false);
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('task-modal').classList.remove('active');
+        }
+
+        function openDoor() {
+            if (progress.length < 5) {
+                document.getElementById('door-msg').innerText = `До открытия двери осталось восстановить ${5 - progress.length} систем.`;
+                document.getElementById('door-modal').classList.add('active');
+            } else {
+                showScreen('final-screen');
+            }
+        }
+
+        function confirmReset() {
+            document.getElementById('reset-modal').classList.add('active');
+        }
+
+        function resetLevel(full = false) {
+            progress = [];
+            localStorage.removeItem(`turing_l${currentLevel}`);
+            document.getElementById('reset-modal').classList.remove('active');
+            renderMarkers();
+            updateProgress();
+            if (full) showScreen('menu-screen');
+        }
+
+        function addToLog(item, success) {
+            const list = document.getElementById('log-list');
+            const li = document.createElement('li');
+            li.innerText = `${item}: ${success ? 'Верно' : 'Ошибка'}`;
+            li.style.color = success ? '#81c784' : '#e57373';
+            list.prepend(li);
+        }
+
+        function showLog() {
+            document.getElementById('log-modal').classList.add('active');
+        }
+
+        function checkGlobalProgress() {
+            let completedLevels = 0;
+            for (let i = 1; i <= 3; i++) {
+                const saved = JSON.parse(localStorage.getItem(`turing_l${i}`)) || [];
+                if (saved.length === 5) completedLevels++;
+            }
+
+            if (completedLevels === 3) {
+                showScreen('victory-screen');
+            } else {
+                showScreen('menu-screen');
+            }
+        }
+
+        updateMenuStatus();
+    </script>
+</body>
+</html>
