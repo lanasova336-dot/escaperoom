@@ -32,10 +32,31 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            position: relative;
         }
 
         .screen.active {
             display: flex;
+        }
+
+        .screen-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 0;
+        }
+
+        .screen-bg-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1;
         }
 
         .content-box {
@@ -46,6 +67,8 @@
             border-radius: 15px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
             margin: 20px;
+            position: relative;
+            z-index: 2;
         }
 
         h1 { 
@@ -303,7 +326,16 @@
             -webkit-text-fill-color: transparent;
             margin-bottom: 1rem;
         }
-        .victory-text { font-size: 1.2rem; line-height: 1.6; color: #ccc; }
+        .victory-text { 
+            font-size: 1.2rem; 
+            line-height: 1.6; 
+            color: #fff;
+            background: rgba(44, 44, 46, 0.95);
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid var(--accent-color);
+            margin: 20px 0;
+        }
         .trophy-icon { width: 80px; height: 80px; margin-bottom: 1rem; display: block; margin-left: auto; margin-right: auto; fill: var(--accent-color); }
 
         @media (max-width: 700px) {
@@ -318,6 +350,8 @@
 
     <!-- Start Screen -->
     <div id="start-screen" class="screen active">
+        <img src="start-bg.png" alt="" class="screen-bg" onerror="this.style.display='none'">
+        <div class="screen-bg-overlay"></div>
         <div class="content-box">
             <h1>Побег из класса</h1>
             <p>Предмет: Информатика, 11 класс<br>Тема: Машина Тьюринга</p>
@@ -400,6 +434,8 @@
 
     <!-- Global Victory Screen -->
     <div id="victory-screen" class="screen">
+        <img src="victory-bg.png" alt="" class="screen-bg" onerror="this.style.display='none'">
+        <div class="screen-bg-overlay"></div>
         <div class="content-box">
             <svg class="trophy-icon" viewBox="0 0 24 24"><path d="M8 21h8m-4-9v9m0-9a5 5 0 0 1-5-5V3h10v3a5 5 0 0 1-5 5z"/></svg>
             <h1 class="victory-title">ПОЛНАЯ ПОБЕДА!</h1>
@@ -650,7 +686,9 @@
                 inp.type = 'text';
                 inp.inputMode = 'decimal';
                 inp.id = 'task-input';
+                inp.autofocus = true;
                 inputArea.appendChild(inp);
+                setTimeout(() => inp.focus(), 100);
             }
             document.getElementById('task-modal').classList.add('active');
         }
