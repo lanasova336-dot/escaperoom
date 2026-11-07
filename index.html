@@ -91,6 +91,7 @@
 
         button:active { transform: scale(0.95); }
         button.secondary { background-color: #444; color: white; }
+        button.danger { background-color: #f44336; color: white; }
 
         .level-card {
             background: #333;
@@ -105,6 +106,14 @@
             align-items: center;
         }
         .level-card:hover { border-color: var(--accent-color); background: #3a3a3c; }
+        .level-card.completed {
+            background: #1b5e20;
+            border-color: #4caf50;
+        }
+        .level-card.completed:hover {
+            background: #2e7d32;
+            border-color: #66bb6a;
+        }
         .level-status { font-size: 1.2rem; }
 
         #game-ui {
@@ -357,6 +366,8 @@
             <p>Предмет: Информатика, 11 класс<br>Тема: Машина Тьюринга</p>
             <p style="margin: 20px 0; color: #aaa;">Вы заперты в виртуальных лабораториях. Чтобы выбраться, восстановите работу вычислительных систем, решая задачи по теме.</p>
             <button onclick="showScreen('menu-screen')">Начать игру</button>
+            <br>
+            <button class="danger" onclick="confirmResetAll()">Сбросить весь прогресс</button>
         </div>
     </div>
 
@@ -366,7 +377,7 @@
             <h1>Выбор уровня</h1>
             <p>Выберите уровень для прохождения:</p>
             
-            <div class="level-card" onclick="selectLevel(1)">
+            <div class="level-card" id="level-card-1" onclick="selectLevel(1)">
                 <div>
                     <h3 style="margin:0">Уровень 1: Лаборатория</h3>
                     <small style="color:#aaa">База: устройство МТ</small>
@@ -374,7 +385,7 @@
                 <span id="status-1" class="level-status"></span>
             </div>
 
-            <div class="level-card" onclick="selectLevel(2)">
+            <div class="level-card" id="level-card-2" onclick="selectLevel(2)">
                 <div>
                     <h3 style="margin:0">Уровень 2: Цех Роботов</h3>
                     <small style="color:#aaa">Практика: алгоритмы</small>
@@ -382,7 +393,7 @@
                 <span id="status-2" class="level-status"></span>
             </div>
 
-            <div class="level-card" onclick="selectLevel(3)">
+            <div class="level-card" id="level-card-3" onclick="selectLevel(3)">
                 <div>
                     <h3 style="margin:0">Уровень 3: Кибер-архив</h3>
                     <small style="color:#aaa">Синтез: логика</small>
@@ -447,7 +458,7 @@
                 Твоя настойчивость и внимательность — настоящий пример для подражания. 
                 Так держать!
             </p>
-            <button onclick="showScreen('menu-screen')">Вернуться в меню</button>
+            <button onclick="returnToStart()">Играть заново</button>
         </div>
     </div>
 
@@ -474,6 +485,16 @@
             <h3>Начать уровень заново?</h3>
             <button onclick="resetLevel(true)">Да</button>
             <button class="secondary" onclick="document.getElementById('reset-modal').classList.remove('active')">Нет</button>
+        </div>
+    </div>
+
+    <!-- Reset All Modal -->
+    <div id="reset-all-modal" class="modal">
+        <div class="modal-content" style="text-align: center;">
+            <h3>Сбросить весь прогресс?</h3>
+            <p style="color:#aaa; margin-bottom: 20px;">Прогресс по всем уровням будет удалён.</p>
+            <button class="danger" onclick="resetAllProgress()">Да, сбросить</button>
+            <button class="secondary" onclick="document.getElementById('reset-all-modal').classList.remove('active')">Отмена</button>
         </div>
     </div>
 
@@ -569,16 +590,36 @@
         let currentTaskId = null;
         let selectedOption = null;
 
+        function confirmResetAll() {
+            document.getElementById('reset-all-modal').classList.add('active');
+        }
+
+        function resetAllProgress() {
+            for (let i = 1; i <= 3; i++) {
+                localStorage.removeItem(`turing_l${i}`);
+            }
+            document.getElementById('reset-all-modal').classList.remove('active');
+            updateMenuStatus();
+        }
+
+        function returnToStart() {
+            resetAllProgress();
+            showScreen('start-screen');
+        }
+
         function updateMenuStatus() {
             for (let i = 1; i <= 3; i++) {
                 const saved = JSON.parse(localStorage.getItem(`turing_l${i}`)) || [];
                 const el = document.getElementById(`status-${i}`);
+                const card = document.getElementById(`level-card-${i}`);
                 if (saved.length === 5) {
                     el.innerHTML = icons['check'];
                     el.style.color = '#4caf50';
+                    card.classList.add('completed');
                 } else {
                     el.innerHTML = icons['lock'];
                     el.style.color = '#888';
+                    card.classList.remove('completed');
                 }
             }
         }
